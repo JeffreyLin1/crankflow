@@ -41,6 +41,21 @@ type PriceDataPoint = {
   quantity_sold: number;
 };
 
+// Add these functions to save and load forecast data
+const saveForecastToLocalStorage = (forecast: any) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('forecastResult', JSON.stringify(forecast));
+  }
+};
+
+const loadForecastFromLocalStorage = () => {
+  if (typeof window !== 'undefined') {
+    const savedForecast = localStorage.getItem('forecastResult');
+    return savedForecast ? JSON.parse(savedForecast) : null;
+  }
+  return null;
+};
+
 export default function ForecastsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [periods, setPeriods] = useState('90');
@@ -75,6 +90,21 @@ export default function ForecastsPage() {
   
   // Add this state variable with your other state variables
   const [priceData, setPriceData] = useState<PriceDataPoint[]>([]);
+  
+  // Load saved forecast on initial render
+  useEffect(() => {
+    const savedForecast = loadForecastFromLocalStorage();
+    if (savedForecast) {
+      setForecastResult(savedForecast);
+    }
+  }, []);
+  
+  // Save forecast whenever it changes
+  useEffect(() => {
+    if (forecastResult) {
+      saveForecastToLocalStorage(forecastResult);
+    }
+  }, [forecastResult]);
   
   // Calculate rolling average (7-day)
   useEffect(() => {
@@ -258,12 +288,14 @@ export default function ForecastsPage() {
         throw new Error(result.error || 'Failed to generate forecast');
       }
       
-      setForecastResult({
-        imagePath: result.imagePath,
+      const forecastData = {
+        imagePath: result.imagePath || '',
         csvPath: result.csvPath,
         forecastData: result.forecastData,
-        summary: result.summary,
-      });
+        summary: result.summary
+      };
+      
+      setForecastResult(forecastData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -342,6 +374,12 @@ export default function ForecastsPage() {
       }] : []),
     ],
   } : null;
+
+  // Add a clear function to remove the forecast from localStorage
+  const clearForecast = () => {
+    setForecastResult(null);
+    localStorage.removeItem('forecastResult');
+  };
 
   return (
     <DashboardLayout title="Forecasts">
@@ -697,7 +735,7 @@ export default function ForecastsPage() {
           
           <div className="flex space-x-4">
             <button
-              onClick={() => setForecastResult(null)}
+              onClick={clearForecast}
               className="text-blue-600 hover:text-blue-800"
             >
               Create Another Forecast
